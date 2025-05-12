@@ -20,7 +20,7 @@ jobs:
             - node-modules-{{ checksum "package-lock.json" }}
       - run:
           name: Install Node dependencies
-          command: npm install
+          command: sudo npm install
       - save_cache:
           paths:
             - node_modules
