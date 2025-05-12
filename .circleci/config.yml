@@ -15,6 +15,11 @@ jobs:
     executor: react-native-executor
     steps:
       - checkout
+      - run:
+          name: Install Node.js & npm
+          command: |
+            curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+            sudo apt-get install -y nodejs
       - restore_cache:
           keys:
             - node-modules-{{ checksum "package-lock.json" }}
