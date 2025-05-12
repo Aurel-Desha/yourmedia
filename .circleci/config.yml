@@ -1,62 +1,49 @@
 version: 2.1
+
 orbs:
-  node: circleci/node@5
+  node: circleci/node@5.0.2
+  android: circleci/android@2.3.0
+
+executors:
+  react-native-executor:
+    docker:
+      - image: cimg/android:2023.09
+    working_directory: ~/yourmediaapp
+
 jobs:
-  test-node:
-    # Install node dependencies and run tests
-    executor: node/default
-    environment:
-      JEST_JUNIT_OUTPUT_DIR: ./test-results/
+  install-dependencies:
+    executor: react-native-executor
     steps:
       - checkout
-      - node/install-packages:
-          pkg-manager: npm
-      - run:
-          command: npm install jest-junit
-      - run:
-          name: Run tests
-          command: npm run test --ci --runInBand --reporters=default --reporters=jest-junit
-      - store_test_results:
-          path: ./test-results/
-  test-java:
-    docker:
-      - image: cimg/openjdk:17.0
-    working_directory: ~/project/android
-    steps:
-      - checkout:
-          path: ~/project
-      - run:
-          name: Calculate cache key
-          command: |-
-            find . -name 'pom.xml' -o -name 'gradlew*' -o -name '*.gradle*' | \
-                    sort | xargs cat > /tmp/CIRCLECI_CACHE_KEY
       - restore_cache:
-          key: cache-{{ checksum "/tmp/CIRCLECI_CACHE_KEY" }}
+          keys:
+            - node-modules-{{ checksum "package-lock.json" }}
       - run:
-          command: ./gradlew check
-      - store_test_results:
-          path: build/test-results
+          name: Install Node dependencies
+          command: npm install
       - save_cache:
-          key: cache-{{ checksum "/tmp/CIRCLECI_CACHE_KEY" }}
           paths:
-            - ~/.gradle/caches
-      - store_artifacts:
-          path: build/reports
-  deploy:
-    # This is an example deploy job, not actually used by the workflow
-    docker:
-      - image: cimg/base:stable
+            - node_modules
+          key: node-modules-{{ checksum "package-lock.json" }}
+
+  build-android:
+    executor: react-native-executor
     steps:
-      # Replace this with steps to deploy to users
+      - checkout
       - run:
-          name: deploy
-          command: '#e.g. ./deploy.sh'
+          name: Install Dependencies
+          command: npm install
+      - run:
+          name: Set execute permissions on gradlew
+          command: chmod +x android/gradlew
+      - run:
+          name: Build APK
+          command: cd android && ./gradlew assembleDebug
+
 workflows:
-  build-and-test:
+  build:
     jobs:
-      - test-node
-      - test-java
-    # - deploy:
-    #     requires:
-    #       - test-node
-    #       - test-java
+      - install-dependencies
+      - build-android:
+          requires:
+            - install-dependencies
